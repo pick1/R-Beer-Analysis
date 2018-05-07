@@ -21,6 +21,7 @@ library(readr)
 library(ggplot2)
 library(dplyr)
 library(GGally)
+library(gridExtra)
 
 recipeData <- read_csv("~/datasets/recipeData.csv")
 styleData <-  read_csv("~/datasets/styleData.csv")
@@ -37,11 +38,19 @@ Kaggle.com has a wide variety of datasets for public consumption (mostly public,
 
 ### Univariate Plots Section
 
-From the summary we can see the dataset contains 73,861 recipes with 23 variables. The below graph shows a distribution of beer recipes by color. The higher the number the darker the beer. We can infer from the distriubtion that there are significantly more light colored beers than dark beers. We'll unpack that below.
+From the summary we can see the dataset contains 73,861 recipes with 23 variables. The below graph shows a distribution of beer recipes by color. The higher the number the darker the beer. We can infer from the distriubtions below we can see that there are significantly more light colored beers than dark beers. In the second distribution we can see an unusually high amount for a particlar Style ID. We'll unpack that below.
 
 ```{r  beer color, echo=FALSE}
 qplot(x=Color, data = df,
       xlab = 'Beer Color',
+      ylab = 'Number of beers in sample',
+      binwidth = 1, color = I('black'), fill = I('#f79420'))
+  
+```
+
+```{r  beer style, echo=FALSE}
+qplot(x=StyleID, data = df,
+      xlab = 'Beers by Style ID Number',
       ylab = 'Number of beers in sample',
       binwidth = 1, color = I('black'), fill = I('#f79420'))
   
@@ -58,23 +67,38 @@ w = table(df$Style)
 t = as.data.frame(w) 
 names(t)[1] = 'Style'
 
-ggplot(subset(t, Freq>1150), aes(Style, Freq), xlim[which(t$Freq > 2500)],las=1) + geom_bar(stat= 'identity') + theme(axis.text.x = element_text(angle = 90))
+ggplot(subset(t, Freq>1150), aes(Style, Freq), xlim[which(t$Freq > 2500)],
+       las=1) + 
+  geom_bar(stat= 'identity') + 
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
-Of the most 10 most popular recipes, we can see that American IPA's are by the most popular recipe and the most popular from the Brewer's Friend data.
+Of the most 10 most popular recipes, we can see that American IPA's are by the most popular recipe and the most popular from the Brewer's Friend data. This is the style that accounted for the unusual spike in the second distribution.
 
 ### Beer and IBUs 
 IBU, stands for International Bittering Units and measures a beer's bitterness. Bitterness is imparted by hops, during the brewing process. This table from <https://en.wikipedia.org/wiki/Beer_measurement> illustrates some of the most common beers and their IBU levels:![IBU of Common Styles.](IBU.png)
 
-Out of 73,861 recipes we can see that the range for IBU is quite vast: 0 to 3409. Since 3409 seems quite high I'll be limiting the range of data for the boxplot to better see the distribution of IBUs:
+Out of 73,861 recipes we can see that the ranges for IBU and ABV can be quite vast, IBU moreso than ABV: 0 to 3409. ABV, has a meadn of 6.137 and a max of 54.72.Since 3409 seems quite high I'll be limiting the range of IBU data for the IBU boxplot to better see the distribution of IBUs:
 ```{r echo = FALSE, message=FALSE, warning=FALSE}
 summary(df$IBU)
 ```
 
-```{r echo =FALSE, message=FALSE, warning=FALSE}
-boxplot(df$IBU, ylim =c(0,150),
-      ylab = 'IBU')
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+summary(df$ABV)
 ```
+
+```{r echo =FALSE, message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x = "",y= IBU),data = df) + geom_boxplot() +
+  ylim(low = 0, high = 150) +
+  ylab('IBU')
+
+p2 <- ggplot(aes(x = "",y = ABV),data = df) + geom_boxplot() +
+  ylab('ABV')
+
+grid.arrange(p1,p2, ncol = 2, top  = "IBU and ABV")
+
+```
+
 
 #### Beer and ABV 
 ABV is the measurement of Alcohol by Volume. ABV is measured in '%' and indicates the portion of beer that is alcohol. A higher ABV means a stronger beer. Of the 73,861 recipes we can see a pretty normal looking distribution. The plot below of ABV has been limited to shorten the right tail.
@@ -149,7 +173,7 @@ ggplot(aes(x = reorder(Style, n), y = ABV ), data = dfMean) +
   geom_jitter(stat = "summary") +
   xlab("Styles by Popularity") +
   ylab("ABV") +
-theme(axis.text.x = element_text(angle = 66,hjust = 1, size = 3))
+  theme(axis.text.x = element_text(angle = 66,hjust = 1, size = 3))
 ```
 
 The above plot explores the relationship of homebrew recipe style (light to dark) and the mean alcohol content (ABV) of the style.
@@ -157,7 +181,7 @@ The above plot explores the relationship of homebrew recipe style (light to dark
 ### Style Popularity and IBU
 ```{r Bivariate_IBU,echo=FALSE,message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 ggplot(aes(x = reorder(Style, n), y = IBU), data = dfMean) + 
-  geom_jitter(stat = "summary") +
+  geom_bar(stat = "summary") +
   xlab("Styles by Popularity") +
   ylab("IBU") +
   theme(axis.text.x = element_text(angle = 66,hjust = 1, size = 3))
@@ -169,9 +193,8 @@ The above plot, similar to the previous, explores the relationship of popularity
 ```{r Bivariate_Plots, echo=FALSE, message=FALSE, warning=FALSE}
 
 ggplot(aes(x = Style, y = ABV), data = subset(dfMean, n >= 1152), 
-       fill = Style) + 
+  fill = Style) + 
   geom_bar(stat = "identity", color = I('black'), fill = I('#f79420')) +
-  
   xlab("Top 10 Most Commmon Styles") +
   ylab("ABV") +
   theme(axis.text.x = element_text(angle = 45,hjust = 1))
@@ -182,8 +205,8 @@ In the above plot we can see how the 10 most common styles compare by ABV.
 ### Top 10 Highest ABV Styles (by style avg.)
 ```{r echo=FALSE, Bivariate_Plot2, message=FALSE, warning=FALSE}
        
-ggplot(aes(x = reorder(Style, -ABV), y = ABV), data = subset(dfMean, ABV >= 9.99), 
-       fill = Style) + 
+ggplot(aes(x = reorder(Style, -ABV), y = ABV), 
+       data = subset(dfMean, ABV >= 9.99), fill = Style) + 
   geom_bar(stat = "identity", color = I('black'), fill = I('violetred4')) +
   xlab("10 Highest ABV (on average) Styles") +
   ylab("ABV") +
@@ -195,8 +218,8 @@ In the above plot we can see how the 10 highest ABV styles compare by ABV. Every
 ### Top 10 Highest IBU Styles (by style avg.)
 ```{r echo=FALSE, Bivariate_Plot3, message=FALSE, warning=FALSE}
        
-ggplot(aes(x = reorder(Style, -IBU), y = IBU), data = subset(dfMean, IBU >= 68.749), 
-       fill = Style) + 
+ggplot(aes(x = reorder(Style, -IBU), y = IBU), 
+       data = subset(dfMean, IBU >= 68.749), fill = Style) + 
   geom_bar(stat = "identity", color = I('black'), fill = I('#339933')) +
   xlab("10 Highest IBU (on average) Styles") +
   ylab("IBU") +
@@ -208,10 +231,9 @@ In the above plot we can see how the 10 highest IBU styles compare by IBU.
 ### Top 10 Dakerst Colored Styles (by style avg.)
 ```{r echo=FALSE, Bivariate_Plot4, message=FALSE, warning=FALSE}
        
-ggplot(aes(x = reorder(Style, -color), y = color), data = subset(dfMean, color >= 35.68), 
-       fill = Style) + 
+ggplot(aes(x = reorder(Style, -color), y = color), 
+       data = subset(dfMean, color >= 35.68), fill = Style) + 
   geom_bar(stat = "identity",  color = I('black'), fill = I('wheat4')) +
-
   xlab("10 Darkest (on average) Styles") +
   ylab("Color") + 
   theme(axis.text.x = element_text(angle = 45,hjust = 1))
@@ -224,7 +246,8 @@ In the above plot we can see how the 10 Darkest styles compare by average color.
 
 library(GGally)
 
-drops <- c("Name","URL", "StyleID","Style","BoilGravity","MashThickness","PrimaryTemp","PrimingMethod","PrimingAmount")
+drops <- c("Name","URL", "StyleID","Style","BoilGravity","MashThickness",
+           "PrimaryTemp","PrimingMethod","PrimingAmount")
 
 ggpairs(df[ , !(names(df) %in% drops)], 
         lower = list(continuous = wrap("points", shape = I('.'))),
@@ -285,7 +308,8 @@ IBU : Color, appear to have the strongest relationship. As color gets darker so 
 
 ```{r echo=FALSE, Multivariate_Plot1, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 ggplot(aes(x = ABV, y = IBU), data = df) +
-  geom_point(alpha = 1/2, size = 3/4, position = "jitter", aes(color = Color)) +
+  geom_point(alpha = 1/2, size = 3/4, 
+             position = "jitter", aes(color = Color)) +
   scale_y_sqrt()
 ```
 
@@ -294,21 +318,24 @@ ggplot(aes(x = ABV, y = IBU), data = df) +
 ```{r echo=FALSE, Multivariate_Plot2, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 
 ggplot(aes(x = color, y = IBU), data = subset(dfMean, n >= 675)) +
-  geom_jitter(aes(color = Style), stat = "summary") +
+  geom_bar(aes(fill = Style), stat = "summary", width = 1) +
   xlab("Color (light to dark)") +
-  ylab("IBU")
+  ylab("Mean IBU")
 ```
 
-### Color : ABV Colored by Style of 25 Most Popular Recipes 
+The above plot takes the 24 most popular styles and observes them in order of color and by IBU. From the visualization we can see that there are roughly 2 groupings on either side of the color range. The left, lighter beers: IPAs, Ales and Wittbiers. The right being Stouts and Porters. The peaks we see are 'Imperial' varieties, Imperial IPA, Russian Imperal Stout, and Imperial Stout.
+
+### Color : ABV Colored by Style of 24 Most Popular Recipes 
 
 ```{r echo=FALSE, Multivariate_Plot3, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 
 ggplot(aes(x = color, y = ABV), data = subset(dfMean, n >= 675)) +
-  geom_jitter(aes(color = Style), stat = "summary") +
+  geom_bar(aes(fill = Style), stat = "summary", width = .33) +
   xlab("Color (light to dark)") +
-  ylab("ABV")
+  ylab("Mean ABV")
 ```
 
+Similar to the IBU plot, in the above plot of the 25 most popular recipes by mean ABV we can sort of see a clusteirng around certain color levels. 5-11 for some lighter styles - IPAs, Lagers and Wiessbiers (Wiessbier, English: wheat beer). The 34-39 range are Stouts and Porter styles. 
 
 ## Multivariate Analysis
 
@@ -327,7 +354,8 @@ Knowing the information about the 'Imperial' naming factor explains why the 'Imp
 ```{r echo=FALSE, Plot1, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 
 ggplot(aes(x = ABV, y = IBU), data = df) +
-  geom_point(alpha = 1/2, size = 3/4, position = "jitter", aes(color = Color)) +
+  geom_point(alpha = 1/2, size = 3/4, position = "jitter", 
+             aes(color = Color)) +
   scale_color_gradient(low = 'orange', high  = 'brown') + 
   scale_y_sqrt()+
   scale_x_sqrt()+
@@ -347,10 +375,10 @@ ggplot(aes(x = ABV, y = IBU), data = df) +
 
 ```{r Bivariate_IBU_final, echo=FALSE,message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 ggplot(aes(x = reorder(Style, n), y = IBU), data = dfMean) + 
-  geom_jitter(stat = "summary") +
+  geom_point(stat = "summary") +
   xlab("Styles by Popularity") +
-  ylab("IBU") +
-  theme(axis.text.x = element_text(angle = 66?)) 
+  ylab("Mean IBU") +
+  theme(axis.text.x = element_text(angle = 66,hjust = 1)) 
 ```
 
 ### Description Two
@@ -361,11 +389,12 @@ Plot two was chosen because it attempts to better explore the data from plot 1. 
 
 ```{r echo=FALSE, Final_Plot3, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20 }
 
-ggplot(aes(x = reorder(Style, n), y = IBU), data = subset(dfMean, n >= 675)) +
-  geom_jitter(aes(color = Style), stat = "summary")+ 
-  theme(axis.text.x = element_text(angle = 90)) +
+ggplot(aes(x = reorder(Style, n), y = IBU), 
+       data = subset(dfMean, n >= 675)) +
+  geom_bar( stat = "summary")+ 
+  theme(axis.text.x = element_text(angle = 66,hjust = 1, size = 14)) +
   xlab("Styles by Popularity") +
-  ylab("IBU")
+  ylab("Mean IBU")
 ```
 
 ### Description Three
